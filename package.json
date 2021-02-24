@@ -7,5 +7,6 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "thanh tuan",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": "https://github.com/danghthanhtuan/AloneSocial.git"
 }
