@@ -1,4 +1,4 @@
-import { Route } from 'core/interface';
+import { Route } from 'core/interfaces';
 import express from 'express';
 import mongoose from 'mongoose';
 
