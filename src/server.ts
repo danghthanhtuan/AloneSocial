@@ -1,6 +1,6 @@
 import 'dotenv/config'
 
-import { IndexRoute } from './modules/index'
+import { IndexRoute } from '@modules/index'
 import App from './app'
 
 const routes = [new IndexRoute()];

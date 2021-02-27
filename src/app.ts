@@ -1,21 +1,28 @@
-import { Route } from 'core/interfaces';
+import { Route } from '@core/interfaces';
+import { Logger } from '@core/utils';
 import express from 'express';
 import mongoose from 'mongoose';
+import helmet from 'helmet';
+import hpp from 'hpp';
+import morgan from 'morgan';
+import cors from 'cors';
 
 class App {
   public app: express.Application;
   public port: string | number;
+  public production: boolean;
 
   constructor(routes: Route[]) {
     this.app = express();
     this.port = process.env.PORT || 5000;
+    this.production = process.env.NODE_ENV == 'production' ? true : false;
 
     this.initializeRoutes(routes);
   }
 
   public listen() {
     this.app.listen(this.port, () => {
-      console.log(`Server is listening on port ${this.port}`);
+      Logger.info(`Server is listening on port ${this.port}`);
     });
   }
 
@@ -26,12 +33,23 @@ class App {
     });
   }
 
+  private initializeMiddleware(){
+    if(this.production){
+      this.app.use(hpp());
+      this.app.use(helmet());
+      this.app.use(morgan('combined'));
+      this.app.use(cors({ origin: 'your.domain.com', credentials: true }));
+    }else{
+      this.app.use(morgan('dev'));
+      this.app.use(cors({ origin: true, credentials: true }));
+    }
+  }
+
   private connectToDatabase(){
-   try {
      const connection  = process.env.MONGO_URI;
      if(!connection)
      {
-       console.log('Connection string is invalid');
+      Logger.error('Connection string is invalid');     
        return;
      }
       mongoose.connect(connection, {
@@ -39,11 +57,10 @@ class App {
         useUnifiedTopology: true,
         useFindAndModify: false,
         useCreateIndex: true
+    }).catch((reason)=>{
+      Logger.error(reason);
     });
-      console.log('Database connected');
-    } catch (error) {
-      console.log('Database error');
-    }
+    Logger.info('Database connected');
   }
 }
 

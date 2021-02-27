@@ -1,4 +1,4 @@
-import winston from 'winston';
+import winston from "winston"
 
 const Logger: winston.Logger = winston.createLogger({
     transports:[new winston.transports.Console()],
