@@ -19,6 +19,8 @@ class App {
     this.port = process.env.PORT || 5000;
     this.production = process.env.NODE_ENV == 'production' ? true : false;
 
+    this.connectToDatabase();
+    this.initializeMiddleware();
     this.initializeRoutes(routes);
   }
 
@@ -46,6 +48,8 @@ class App {
       this.app.use(cors({ origin: true, credentials: true }));
     }
     this.app.use(errorMiddleware);
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({extended: true}));
   }
 
   private connectToDatabase(){
