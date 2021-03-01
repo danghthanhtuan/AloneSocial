@@ -22,6 +22,7 @@ class App {
     this.connectToDatabase();
     this.initializeMiddleware();
     this.initializeRoutes(routes);
+    this.errorMiddleware();
   }
 
   public listen() {
@@ -37,6 +38,10 @@ class App {
     });
   }
 
+  private errorMiddleware(){
+    this.app.use(errorMiddleware);
+  }
+
   private initializeMiddleware(){
     if(this.production){
       this.app.use(hpp());
@@ -46,8 +51,7 @@ class App {
     }else{
       this.app.use(morgan('dev'));
       this.app.use(cors({ origin: true, credentials: true }));
-    }
-    this.app.use(errorMiddleware);
+    }   
     this.app.use(express.json());
     this.app.use(express.urlencoded({extended: true}));
   }
