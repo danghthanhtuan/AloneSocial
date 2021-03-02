@@ -2,51 +2,108 @@ import { HttpException } from "@core/exceptions";
 import { isEmptyObject } from "@core/utils/helpers";
 import { DataStoredInToken, TokenData } from "@modules/auth";
 import RegisterDto from "./Dto/register.dto";
-import UserSchema  from "./users.model";
+import UserSchema from "./users.model";
 import gravatar from "gravatar";
 import bcryptjs from 'bcryptjs'
 import IUser from "./users.interface";
 import jwt from 'jsonwebtoken';
 
-class UserService{
+class UserService {
     public userSchema = UserSchema;
 
-    public async createUser(model: RegisterDto): Promise<TokenData>{
-       if(isEmptyObject(model)){
-           throw new HttpException(400, 'Model is empty');
-       } 
+    public async createUser(model: RegisterDto): Promise<TokenData> {
+        if (isEmptyObject(model)) {
+            throw new HttpException(400, 'Model is empty');
+        }
 
-       const user = await this.userSchema.findOne({ email: model.email });
-       if(user){
-           throw new HttpException(409, `Your email ${model.email} already exist.`)
-       }
+        const user = await this.userSchema.findOne({ email: model.email });
+        if (user) {
+            throw new HttpException(409, `Your email ${model.email} already exist.`)
+        }
 
-       const avatar = gravatar.url(model.email!,{
+        const avatar = gravatar.url(model.email!, {
             size: '200',
             rating: 'g',
             default: 'mm'
-       });
+        });
 
-       const salt = await bcryptjs.genSalt(10);
-       const hashedPassword = await bcryptjs.hash(model.password!, salt);
-       const createUser: IUser = await this.userSchema.create({
-           ...model,
-           password: hashedPassword,
-           avatar: avatar,
-           date: Date.now(),
-       });
+        const salt = await bcryptjs.genSalt(10);
+        const hashedPassword = await bcryptjs.hash(model.password!, salt);
+        const createUser: IUser = await this.userSchema.create({
+            ...model,
+            password: hashedPassword,
+            avatar: avatar,
+            date: Date.now(),
+        });
 
-       return this.createToken(createUser);
+        return this.createToken(createUser);
     }
 
-    private createToken(user: IUser): TokenData{
-        const dataInToken : DataStoredInToken = {id: user._id};
+    private createToken(user: IUser): TokenData {
+        const dataInToken: DataStoredInToken = { id: user._id };
         const secret: string = process.env.JWT_TOKEN_SECRET!;
-        const expiresIn : number = 60;
+        const expiresIn: number = 60;
 
         return {
-            token: jwt.sign(dataInToken, secret, {expiresIn: expiresIn })
+            token: jwt.sign(dataInToken, secret, { expiresIn: expiresIn })
         }
+    }
+
+    public async getUserById(userId: string): Promise<IUser> {
+        const user = await this.userSchema.findById(userId).exec();
+        if (!user) {
+            throw new HttpException(404, 'User is not exist');
+        }
+        return user;
+    }
+
+    public async updateUser(userId: string, model: RegisterDto): Promise<IUser> {
+        if (isEmptyObject(model)) {
+            throw new HttpException(400, 'Model is empty');
+        }
+
+        const user = await this.userSchema.findById(userId).exec();
+        if (!user) {
+            throw new HttpException(400, `User id is not exist`);
+        }
+        let avatar = user.avatar;
+        if (user.email === model.email) {
+            throw new HttpException(400, 'You must using the difference email');
+        } else {
+            const duplicateEmail = await this.userSchema.findOne({ email: model.email }).exec();
+            if (duplicateEmail) throw new HttpException(400, 'Email already exist');
+
+            avatar = gravatar.url(model.email!, {
+                size: '200',
+                rating: 'g',
+                default: 'mm',
+            });
+        }
+
+        let updateUserById;
+        if (model.password) {
+            const salt = await bcryptjs.genSalt(10);
+            const hashedPassword = await bcryptjs.hash(model.password, salt);
+            updateUserById = await this.userSchema
+                .findByIdAndUpdate(userId, {
+                    ...model,
+                    avatar: avatar,
+                    password: hashedPassword,
+                })
+                .exec();
+        } else {
+            updateUserById = await this.userSchema
+                .findByIdAndUpdate(userId, {
+                    ...model,
+                    avatar: avatar,
+                })
+                .exec();
+        }
+
+        if (!updateUserById) throw new HttpException(409, 'You are not an user');
+        const userBeforeUpdate = await this.userSchema.findById(userId).exec();
+
+        return userBeforeUpdate!;
     }
 }
 
