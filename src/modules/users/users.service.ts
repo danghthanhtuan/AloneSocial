@@ -7,6 +7,7 @@ import gravatar from "gravatar";
 import bcryptjs from 'bcryptjs'
 import IUser from "./users.interface";
 import jwt from 'jsonwebtoken';
+import IPagination from "@core/interfaces/pagination.interface";
 
 class UserService {
     public userSchema = UserSchema;
@@ -57,6 +58,11 @@ class UserService {
         return user;
     }
 
+    /**
+     * Update User
+     * @param userId UserId
+     * @param model RegisterDto
+     */
     public async updateUser(userId: string, model: RegisterDto): Promise<IUser> {
         if (isEmptyObject(model)) {
             throw new HttpException(400, 'Model is empty');
@@ -104,6 +110,49 @@ class UserService {
         const userBeforeUpdate = await this.userSchema.findById(userId).exec();
 
         return userBeforeUpdate!;
+    }
+
+    /**
+     * Get All User
+     */
+    public async getAll(): Promise<IUser[]> {
+        const users = await this.userSchema.find().exec();
+        return users;
+    }
+
+    public async getAllPaging(keyword: string, page: number): Promise<IPagination<IUser>> {
+        const pageSize = Number(process.env.PAGE_SIZE || 10);
+
+        let query = {};
+        if (keyword) {
+            query = {
+                $or: [
+                    { email: keyword },
+                    { first_name: keyword },
+                    { last_name: keyword }
+                ]
+            }
+        }
+        const users = await this.userSchema
+            .find(query)
+            .skip((page - 1) * pageSize)
+            .limit(pageSize)
+            .exec();
+
+        const rowCount = await this.userSchema.find(query).countDocuments().exec();
+
+        return {
+            total: rowCount,
+            page: page,
+            pageSize: pageSize,
+            items: users
+        } as IPagination<IUser>;
+    }
+
+    public async deleteUser(userId: string): Promise<IUser> {
+        const deleteUser = await this.userSchema.findByIdAndDelete(userId).exec();
+        if (!deleteUser) throw new HttpException(409, 'Your id is invalid');
+        return deleteUser;
     }
 }
 
