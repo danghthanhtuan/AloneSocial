@@ -8,6 +8,7 @@ import bcryptjs from 'bcryptjs'
 import IUser from "./users.interface";
 import jwt from 'jsonwebtoken';
 import IPagination from "@core/interfaces/pagination.interface";
+import { http } from "winston";
 
 class UserService {
     public userSchema = UserSchema;
@@ -75,16 +76,27 @@ class UserService {
         let avatar = user.avatar;
         if (user.email === model.email) {
             throw new HttpException(400, 'You must using the difference email');
-        } else {
-            const duplicateEmail = await this.userSchema.findOne({ email: model.email }).exec();
-            if (duplicateEmail) throw new HttpException(400, 'Email already exist');
-
-            avatar = gravatar.url(model.email!, {
-                size: '200',
-                rating: 'g',
-                default: 'mm',
-            });
         }
+
+        const checkEmailExist = await this.userSchema.find({
+            $and: [
+                {
+                    email: { $eq: model.email }
+                },
+                {
+                    _id: { $ne: userId }
+                }]
+        })
+
+        if (checkEmailExist.length !== 0) {
+            throw new HttpException(400, 'Your email has been used by another user');
+        }
+
+        avatar = gravatar.url(model.email!, {
+            size: '200',
+            rating: 'g',
+            default: 'mm',
+        });
 
         let updateUserById;
         if (model.password) {
@@ -95,21 +107,20 @@ class UserService {
                     ...model,
                     avatar: avatar,
                     password: hashedPassword,
-                })
+                }, { new: true })
                 .exec();
         } else {
             updateUserById = await this.userSchema
                 .findByIdAndUpdate(userId, {
                     ...model,
                     avatar: avatar,
-                })
+                }, { new: true })
                 .exec();
         }
 
         if (!updateUserById) throw new HttpException(409, 'You are not an user');
-        const userBeforeUpdate = await this.userSchema.findById(userId).exec();
 
-        return userBeforeUpdate!;
+        return updateUserById;
     }
 
     /**
@@ -127,10 +138,10 @@ class UserService {
         if (keyword) {
             query = {
                 $or: [
-                    { email: keyword },
-                    { first_name: keyword },
-                    { last_name: keyword }
-                ]
+                    { email: { $regex: keyword, $options: 'i' } },
+                    { first_name: { $regex: keyword, $options: 'i' } },
+                    { last_name: { $regex: keyword, $options: 'i' } }
+                ],
             }
         }
         const users = await this.userSchema
